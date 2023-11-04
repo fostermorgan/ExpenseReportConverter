@@ -20,6 +20,11 @@ namespace ExpenseReportConverter
             CreateExcelFileFromData(excelData, newExcelFilePath);
 
 
+            // APPEND LOGIC
+            //string excelFilePath = "path_to_existing_excel_file.xlsx";
+            List<string> newData = new List<string> { "New Data 1", "New Data 2" };
+
+            AppendDataToExcel(excelFilePath, newData);
         }
 
         public static List<string> ReadDataFromExcel(string filePath)
@@ -104,12 +109,45 @@ namespace ExpenseReportConverter
                     range.Style.Numberformat.Format = "$#,##0.00";
                 }
 
-                
+
 
                 // Save the Excel package to a file
                 package.SaveAs(new FileInfo(outputFilePath));
             }
         }
+
+
+
+        public static void AppendDataToExcel(string excelFilePath, List<string> newData)
+        {
+            // Load the existing Excel file
+            FileInfo existingFile = new FileInfo(excelFilePath);
+
+            using (var package = new ExcelPackage(existingFile))
+            {
+                var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+
+                if (worksheet != null)
+                {
+                    // Find the last used row in the worksheet
+                    int lastUsedRow = worksheet.Dimension.End.Row;
+
+                    // Determine the starting row for appending new data
+                    int newRow = lastUsedRow + 1;
+
+                    // Append the new data to the worksheet
+                    foreach (var item in newData)
+                    {
+                        worksheet.Cells[newRow, 1].Value = item;
+                        newRow++;
+                    }
+
+                    // Save the updated Excel file
+                    package.Save();
+                }
+            }
+        }
+
 
     }
 }
