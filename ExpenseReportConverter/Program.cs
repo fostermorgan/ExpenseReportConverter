@@ -19,11 +19,21 @@ namespace ExpenseReportConverter
             OutputMasterK1HeaderRow = 3;
             // ASSUMPTION: name of column to search for a match is named 'Street' in K1 sheet
 
-            Console.WriteLine("Master K-1 output File: " + masterK1DocName);
+            OutputLine("Master K-1 output File: " + masterK1DocName);
 
             // Get the application's base directory
             string directoryPath = @"C:\code\ExpenseReportConverter\Development References"; //AppDomain.CurrentDomain.BaseDirectory;
-            Console.WriteLine("Looking for files in directory: " + directoryPath);
+            OutputLine("Looking for files in directory: " + directoryPath);
+
+            //TODO: prompt for accept defaults - Inputs header row of 5 and ouput header row of 3
+
+
+            //set license information for the excel library nuget package
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            //set up exception handling
+            System.AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
+
 
             DirectoryInfo directoryInfo = new DirectoryInfo(directoryPath);
 
@@ -44,33 +54,35 @@ namespace ExpenseReportConverter
                         masterK1FileInfo = file;
                     }
                 }
-                if(masterK1FileInfo == null)
+                if (masterK1FileInfo == null)
                 {
                     throw new Exception("The master K-1 file specified was not found.");
                 }
 
-                Console.WriteLine(inputSpreadsheetFiles.Count + " file(s) were found for processing.");
-                Console.WriteLine("    _____");
-                Console.WriteLine("   /\\\\   \\\\");
-                Console.WriteLine("  /  \\\\   \\\\            <=======================================>");
-                Console.WriteLine(" /    \\\\___\\\\            WELCOME TO THE EXPENSE REPORT CONVERTER");
-                Console.WriteLine("/___________\\\\          <=======================================>");
-                Console.WriteLine("|   ______   |");
-                Console.WriteLine("|  |      |  |                   - Foster");
-                Console.WriteLine("|__|______|__|");
+                // Check if main output K1 file is open, if it is prompt user to close it.
+                SaveFile(masterK1FileInfo);
+
+                OutputLine(inputSpreadsheetFiles.Count + " file(s) were found for processing.");
+                OutputLine("    _____");
+                OutputLine("   /\\\\   \\\\");
+                OutputLine("  /  \\\\   \\\\            <=======================================>");
+                OutputLine(" /    \\\\___\\\\            WELCOME TO THE EXPENSE REPORT CONVERTER");
+                OutputLine("/___________\\\\          <=======================================>");
+                OutputLine("|   ______   |");
+                OutputLine("|  |      |  |                   - Foster");
+                OutputLine("|__|______|__|");
+                OutputLine();
 
                 foreach (FileInfo file in inputSpreadsheetFiles)
                 {
-                    Console.Write("Starting to process: " + file.Name + "...");
+                    OutputLine("Starting to process: " + file.Name + "...");
                     // parse address and expenses from input excel sheet
                     InputExcelReport ier = ParseInputExcel(file);
-                    Console.Write("Success! \n");
 
                     // Output ier data to master K-1 sheet.
-                    Console.WriteLine("Apending input data for " + ier.Address + " to " + masterK1DocName + "...");
+                    //OutputLine("Apending input data for " + ier.Address + " to " + masterK1DocName + "...");
                     string apendExcelFilePath = masterK1FileInfo.FullName;
                     AppendDataToExcel(apendExcelFilePath, ier);
-                    Console.WriteLine("Success!");
 
                     // Output ier data to pdf sheet.
 
@@ -78,8 +90,17 @@ namespace ExpenseReportConverter
             }
             else
             {
-                Console.WriteLine("The specified directory does not exist.");
-            }            
+                OutputLine("The specified directory does not exist.");
+            }
+
+            //TODO: specify where output log goes.
+            //OutputLine("The output log can be found at " + )
+
+            //prompt user to exit the application
+            OutputLine("Press Enter to exit application.");
+            Console.ReadLine();
+            Environment.Exit(1);
+
         }
 
         public static InputExcelReport ParseInputExcel(FileInfo file)
@@ -94,8 +115,6 @@ namespace ExpenseReportConverter
         public static Dictionary<string, double> ReadDataFromExcel(string filePath)
         {
             Dictionary<string, double> expenses = new Dictionary<string, double>();
-
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             using (var package = new ExcelPackage(new FileInfo(filePath)))
             {
@@ -136,7 +155,7 @@ namespace ExpenseReportConverter
                             else
                             {
                                 // Handle the case where the value couldn't be parsed as a double
-                                Console.WriteLine("Couldn't parse data: " + amountValue);
+                                OutputLine("Couldn't parse data: " + amountValue);
                             }
                         }
                     }                    
@@ -200,6 +219,9 @@ namespace ExpenseReportConverter
             {
                 var worksheet = package.Workbook.Worksheets.FirstOrDefault();
 
+                char successIcon = '\u2713';
+                char failIcon = 'x';
+
                 if (worksheet != null)
                 {
                     // IDENTIFY ALL COLUMNS 
@@ -209,11 +231,13 @@ namespace ExpenseReportConverter
 
                     for (int column = 1; column <= columnCount; column++)
                     {
-                        string cellValue = worksheet.Cells[OutputMasterK1HeaderRow, column].Text;
+                        string cellValue = worksheet.Cells[OutputMasterK1HeaderRow, column].Text.Trim();
                         if (!cellValue.Trim().Equals(""))
                         {
-                            if(!cellValue.Equals("Administration"))
+                            if (!cellValue.Equals("Administration"))
+                            {
                                 columnTitles.Add(cellValue, column);
+                            }
                         }
                     }
 
@@ -231,9 +255,12 @@ namespace ExpenseReportConverter
                     // IF ADDRESS NOT FOUND, DISPLAY MSG TO USER
                     if (reportAddressRow == 0)
                     {
-                        Console.WriteLine(report.Address + " was not found in the K1 and no data was added.");
+                        OutputLine(failIcon + " [" + report.Address + "] was not found in K1 :(");
                     } else
                     {
+                        List<string> successfulOutputs = new List<string>();
+                        List<string> erroredOutputs = new List<string>();
+
                         // ELSE APPEND EXPENSE DATA TO K1
                         foreach (var expense in report.Expenses)
                         {
@@ -241,27 +268,76 @@ namespace ExpenseReportConverter
                             {
                                 int expenseColumn = columnTitles[expense.Key];
                                 worksheet.Cells[reportAddressRow, expenseColumn].Value = expense.Value;
-                                Console.WriteLine("\tWrote " + expense.Key + "[" + expense.Value + "] to K1 successfully!");
+                                successfulOutputs.Add("\t" + successIcon + " " + expense.Key + "[" + expense.Value + "]");
 
-                            } catch(KeyNotFoundException e)
+                            } catch(KeyNotFoundException)
                             {
-                                Console.WriteLine("\t" + expense.Key + " not found in master K1 so " + expense.Value + " wasn't added.");
-                            }
+                                erroredOutputs.Add("\t" + failIcon + " " + expense.Key + "[" + expense.Value + "]" + " - Column was not found in K1 so it wasn't added.");
+                            }                            
                         }
 
-                        // Save the updated Excel file
-                        try
+                        //output successful writes first, then errored writes
+                        foreach (string successMessage in successfulOutputs)
                         {
-                            package.Save();
-                        } catch(InvalidOperationException e)
-                        {
-                            Console.WriteLine();
-                            Console.WriteLine(":( Error saving data to K1 file. Please make sure it's not open and run the program again.");
-                            throw new Exception("Program failure. See above message for details. ");
+                            OutputLine(successMessage);
                         }
+                        foreach (string errorMessage in erroredOutputs)
+                        {
+                            OutputLine(errorMessage);
+                        }
+
+                        SaveFile(existingFile);
+                        OutputLine("Success!");
+                        OutputLine();
                     }
                 }
             }
+        }
+
+        public static void SaveFile(FileInfo existingFile)
+        {
+            using (var package = new ExcelPackage(existingFile))
+            {
+                // Save the updated Excel file
+                try
+                {
+                    package.Save();
+                }
+                catch (InvalidOperationException)
+                {
+                    throw new Exception("Please make sure it's not open and run the program again.");
+                }
+            }
+        }
+
+        public static void OuputErrorMessage(string errorMessage)
+        {
+            OutputLine("   _________");
+            OutputLine("  /         \\");
+            OutputLine(" |   Error   |");
+            OutputLine("  \\_________/");
+            OutputLine();
+            OutputLine($"   {errorMessage}");
+        }
+
+        public static void OutputLine(string message = "")
+        {
+            Console.WriteLine(message);
+            //TODO: also log this to an ouput file in a new directory ./Logs
+        }
+
+        public static void UnhandledExceptionTrapper(object sender, UnhandledExceptionEventArgs e)
+        {
+
+            OuputErrorMessage("A system error happened - " + ((Exception)e.ExceptionObject).Message);
+            OutputLine();
+            OutputLine("==============================");
+            OutputLine("Full Stack Trace:");
+            OutputLine(e.ExceptionObject.ToString());
+            OutputLine("==============================");
+            OutputLine("Press Enter to exit application.");
+            Console.ReadLine();
+            Environment.Exit(1);
         }
     }
 
