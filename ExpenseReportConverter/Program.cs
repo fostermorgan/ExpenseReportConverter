@@ -47,11 +47,11 @@ namespace ExpenseReportConverter
                     directoryPath = string.Empty;
                 }
             }
-            string masterK1DocName = string.Empty;
+            string? masterK1DocName = string.Empty;
             // prompt user for name of master k - 1 doc
             while (string.IsNullOrEmpty(masterK1DocName))
             {
-                //TODO: add message of must be xlsx file?
+                //note: could add message of must be xlsx file?
                 OutputLine("Please enter the name of your master k1 document ('Master K-1.xlsx' if you hit Enter):");
                 masterK1DocName = Console.ReadLine();
                 if (string.IsNullOrEmpty(masterK1DocName))
@@ -59,18 +59,13 @@ namespace ExpenseReportConverter
                     masterK1DocName = @"Master K-1";
                 }
             }
-            masterK1DocName += ".xlsx";
+            if (!masterK1DocName.Contains(".xlsx"))
+            {
+                masterK1DocName += ".xlsx";
+            }
 
             InputsHeaderRow = 5;
             OutputMasterK1HeaderRow = 3;
-            // ASSUMPTION: name of column to search for a match is named 'Street' in K1 sheet
-
-            
-            //TODO: prompt for accept defaults - Inputs header row of 5 and ouput header row of 3
-
-
-            
-
 
             DirectoryInfo directoryInfo = new DirectoryInfo(directoryPath);
 
@@ -102,6 +97,14 @@ namespace ExpenseReportConverter
                 // display information user inputted
                 OutputLine("Looking for files in directory: " + directoryPath);
                 OutputLine("Master K-1 output File: " + masterK1DocName);
+                OutputLine("Other assumptions: \n" +
+                    "\t1. Header row for each input excel sheet (5). \n" +
+                    "\t2. Header row for K1 doc (3)\n" +
+                    "\t3. Name of column to search for a match is named 'Street' in K1 sheet\n"); //note could prompt user or have a env.txt on build with defaults.
+
+                OutputLine("=======================");
+                OutputLine("\tSTARTING...");
+                OutputLine("=======================");
                 OutputLine(inputSpreadsheetFiles.Count + " file(s) were found for processing.");
 
                 foreach (FileInfo file in inputSpreadsheetFiles)
