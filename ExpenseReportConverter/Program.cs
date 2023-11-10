@@ -6,6 +6,11 @@ using System.Runtime.ConstrainedExecution;
 using System.Net;
 using System.Diagnostics.Metrics;
 using System.Xml.Linq;
+using System.Reflection.PortableExecutable;
+using iText.Kernel.Pdf;
+using iText.Forms;
+using iText.Forms.Fields;
+using static iText.IO.Codec.TiffWriter;
 
 namespace ExpenseReportConverter
 {
@@ -19,8 +24,13 @@ namespace ExpenseReportConverter
         public static char successIcon = '\u2713';
         public static char failIcon = 'x';
 
+        public static string? directoryPath = "";
+        public static string dateTimeOnRun = "it shouldnt be named this.txt";
+
         static void Main(string[] args)
         {
+            WriteToPdf();
+            dateTimeOnRun = $"File_{DateTime.Now:yyyyMMddHHmmss}.txt";
             //SET UP APPLICATION
             //set license information for the excel library nuget package
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -28,9 +38,9 @@ namespace ExpenseReportConverter
             //set up exception handling
             System.AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
             
-            DisplayWelcomeMessage();
+            
             // prompt user for directory of where all the files are
-            string? directoryPath = string.Empty;
+            directoryPath = string.Empty;
             while (string.IsNullOrEmpty(directoryPath))
             {
                 OutputLine("Please enter your Base Directory (where your files are stored):");
@@ -47,6 +57,7 @@ namespace ExpenseReportConverter
                     directoryPath = string.Empty;
                 }
             }
+            
             string? masterK1DocName = string.Empty;
             // prompt user for name of master k - 1 doc
             while (string.IsNullOrEmpty(masterK1DocName))
@@ -63,6 +74,9 @@ namespace ExpenseReportConverter
             {
                 masterK1DocName += ".xlsx";
             }
+
+            OutputLine();
+            DisplayWelcomeMessage();
 
             InputsHeaderRow = 5;
             OutputMasterK1HeaderRow = 3;
@@ -147,6 +161,124 @@ namespace ExpenseReportConverter
             Console.ReadLine();
             Environment.Exit(1);
 
+        }
+
+        public static void WriteToPdf()
+        {
+            //string pdfFilePath = "Path_to_Your_PDF_File.pdf"; // Replace with your PDF file path
+
+            //string fieldName = "YourFieldName"; // Replace with the actual field name in your PDF
+
+            //string fieldValue = "Value to Fill"; // The value you want to set in the field
+
+            //try
+            //{
+            //    PdfDocument pdfDocument = new PdfDocument(new PdfReader(pdfFilePath), new PdfWriter(pdfFilePath));
+
+            //    PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, true);
+            //    form.GetField(fieldName).SetValue(fieldValue);
+
+            //    pdfDocument.Close();
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine("An error occurred: " + ex.Message);
+            //}
+
+
+            string pdfFilePath = @"C:\code\ExpenseReportConverter\Development References\2022 CLA Tax Organizer Zach Zank FINAL -part-2.pdf"; // Replace with your PDF file path
+            //try
+            //{
+            //    using (PdfReader pdfReader = new PdfReader(pdfFilePath))
+            //    {
+            //        PdfDocument pdfDocument = new PdfDocument(pdfReader, new PdfWriter(pdfFilePath + ".tmp"));
+            //        PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, true);
+
+            //        if (form != null)
+            //        {
+            //            ICollection<PdfFormField> fields = form.GetAllFormFields().Values;
+
+            //            foreach (PdfFormField field in fields)
+            //            {
+            //                string fieldName = field.GetFieldName().GetValue();
+            //                field.SetValue(fieldName);
+            //            }
+            //        }
+            //        else
+            //        {
+            //            Console.WriteLine("The document does not contain any form fields.");
+            //        }
+
+            //        pdfDocument.Close();
+            //    }
+
+            //    // Delete the original file and rename the modified one
+            //    System.IO.File.Delete(pdfFilePath);
+            //    System.IO.File.Move(pdfFilePath + ".tmp", pdfFilePath);
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine("An error occurred: " + ex.Message);
+            //}
+
+
+            try
+            {
+                PdfDocument pdfDocument = new PdfDocument(new PdfWriter(pdfFilePath));
+
+                PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, true);
+                if (form != null)
+                {
+                    ICollection<PdfFormField> fields = form.GetAllFormFields().Values;
+
+                    foreach (PdfFormField field in fields)
+                    {
+                        string fieldName = field.GetFieldName().GetValue();
+                        field.SetValue(fieldName);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("The document does not contain any form fields.");
+                }
+
+                pdfDocument.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+
+
+            //try
+            //{
+            //    PdfDocument pdfDocument = new PdfDocument(new PdfReader(pdfFilePath));
+
+            //    PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, false);
+            //    if (form != null)
+            //    {
+            //        ICollection<PdfFormField> fields = form.GetAllFormFields().Values;
+
+            //        Console.WriteLine("Form Field Names:");
+            //        foreach (PdfFormField field in fields)
+            //        {
+
+            //            string fieldName = field.GetFieldName().GetValue();
+            //            Console.WriteLine(field.GetFieldName());
+            //            form.GetField(fieldName).SetValue(fieldName);
+            //        }
+            //    }
+            //    else
+            //    {
+            //        Console.WriteLine("The document does not contain any form fields.");
+            //    }
+
+            //    pdfDocument.Close();
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine("An error occurred: " + ex.Message);
+            //}
         }
 
         public static InputExcelReport ParseInputExcel(FileInfo file)
@@ -318,8 +450,31 @@ namespace ExpenseReportConverter
 
         public static void OutputLine(string message = "")
         {
+            // WRITE MESSAGE TO CONSOLE
             Console.WriteLine(message);
-            //TODO: also log this to an ouput file in a new directory ./Logs
+
+            // WRITE MESSAGE TO LOG FILE
+            if(directoryPath != null)
+            {
+                string directoryName = Path.Combine(directoryPath, "Logs");
+
+                if (!Directory.Exists(directoryName))
+                {
+                    Directory.CreateDirectory(directoryName);
+                }
+                string filePath = Path.Combine(directoryName, dateTimeOnRun);
+                //if (!System.IO.File.Exists(filePath))
+                //{
+                //    // If the file doesn't exist, create a new file with a name based on the current timestamp
+                //    filePath = Path.Combine(directoryName, $"File_{DateTime.Now:yyyyMMddHHmmss}.txt");
+                //}
+
+                // Append the line to the file
+                using (StreamWriter sw = System.IO.File.AppendText(filePath))
+                {
+                    sw.WriteLine(message);
+                }
+            }
         }
 
         public static void UnhandledExceptionTrapper(object sender, UnhandledExceptionEventArgs e)
