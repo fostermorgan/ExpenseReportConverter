@@ -167,10 +167,10 @@ namespace ExpenseReportConverter
             OutputLine(failIcon + "Addresses found, but not written to PDF:");
             OutputLine(string.Join("\n", ErroredAddressWritesToPDF));
             OutputLine();
-            
 
-            //TODO: specify where output log goes.
-            //OutputLine("The output log can be found at " + )
+
+            //specify where output log goes.
+            OutputLine("The output log can be found at " + Path.Combine(directoryPath, "Logs", dateTimeOnRun));
 
             //prompt user to exit the application
             OutputLine("Press Enter to exit application.");
