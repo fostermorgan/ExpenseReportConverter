@@ -10,6 +10,7 @@ using static iText.IO.Codec.TiffWriter;
 using File = System.IO.File;
 using iTextSharp.text.pdf;
 using PdfReader = iTextSharp.text.pdf.PdfReader;
+using iText.Forms.Fields;
 
 namespace ExpenseReportConverter
 {
@@ -20,6 +21,9 @@ namespace ExpenseReportConverter
 
         public static List<string> SuccessfullAddressWritesToK1 { get; set; } = new List<string>();
         public static List<string> ErroredAddressWritesToK1 { get; set; } = new List<string>();
+        public static List<string> SuccessfullAddressWritesToPDF { get; set; } = new List<string>();
+        public static List<string> ErroredAddressWritesToPDF { get; set; } = new List<string>();
+        
         public static char successIcon = '\u2713';
         public static char failIcon = 'x';
 
@@ -28,7 +32,6 @@ namespace ExpenseReportConverter
 
         static void Main(string[] args)
         {
-            WriteToPdf();
             dateTimeOnRun = $"File_{DateTime.Now:yyyyMMddHHmmss}.txt";
             //SET UP APPLICATION
             //set license information for the excel library nuget package
@@ -115,24 +118,30 @@ namespace ExpenseReportConverter
                     "\t2. Header row for K1 doc (3)\n" +
                     "\t3. Name of column to search for a match is named 'Street' in K1 sheet\n"); //note could prompt user or have a env.txt on build with defaults.
 
-                OutputLine("=======================");
-                OutputLine("\tSTARTING...");
-                OutputLine("=======================");
-                OutputLine(inputSpreadsheetFiles.Count + " file(s) were found for processing.");
+                OutputLine("==========================");
+                OutputLine("\tSTARTING (" + inputSpreadsheetFiles.Count + ")");
+                OutputLine("==========================");
+                OutputLine();
 
                 foreach (FileInfo file in inputSpreadsheetFiles)
                 {
-                    OutputLine("Starting to process: " + file.Name + "...");
+                    OutputLine("> " + file.Name + "...");
+                    OutputLine();
                     // parse address and expenses from input excel sheet
                     InputExcelReport ier = ParseInputExcel(file);
 
                     // Output ier data to master K-1 sheet.
                     string apendExcelFilePath = masterK1FileInfo.FullName;
+                    OutputLine("Excel is processing...", 1);
+                    OutputLine("----------------------", 1);
                     AppendDataToExcel(apendExcelFilePath, ier);
                     OutputLine();
 
                     // Output ier data to pdf sheet.
-
+                    OutputLine("PDF is processing...", 1);
+                    OutputLine("--------------------", 1);
+                    AppendDataToPdf(ier);
+                    OutputLine();
                 }
             }
             else
@@ -151,6 +160,14 @@ namespace ExpenseReportConverter
             OutputLine(failIcon + " Addresses found, but not written to K1:");
             OutputLine(string.Join("\n", ErroredAddressWritesToK1));
             OutputLine();
+
+            OutputLine(successIcon + " Successful writes to PDF:");
+            OutputLine(string.Join("\n", SuccessfullAddressWritesToPDF));
+            OutputLine();
+            OutputLine(failIcon + "Addresses found, but not written to PDF:");
+            OutputLine(string.Join("\n", ErroredAddressWritesToPDF));
+            OutputLine();
+            
 
             //TODO: specify where output log goes.
             //OutputLine("The output log can be found at " + )
@@ -186,9 +203,13 @@ namespace ExpenseReportConverter
             OTHER_EXPENSES_AMOUNT_2,
         }
 
-        public static void WriteToPdf()
+
+        public static List<string> successfulPDFOutputs = new List<string>();
+        public static List<string> erroredPDFOutputs = new List<string>();
+        public static void AppendDataToPdf(InputExcelReport ier)
         {
             Dictionary<Expenses, string> PdfFieldsNameDict = new Dictionary<Expenses, string>();
+
             PdfFieldsNameDict.Add(Expenses.ADVERTISING, "Field456");
             PdfFieldsNameDict.Add(Expenses.AUTO_AND_TRAVEL, "Field457");
             PdfFieldsNameDict.Add(Expenses.CLEANING_AND_MAINTENANCE, "Field458");
@@ -210,44 +231,80 @@ namespace ExpenseReportConverter
             PdfFieldsNameDict.Add(Expenses.OTHER_EXPENSES_AMOUNT_1, "Field473");
             PdfFieldsNameDict.Add(Expenses.OTHER_EXPENSES_NAME_1, "Field472");
 
+            string pdfFileName = ier.Address + ".pdf";
+            string pdfTemplate = Path.Combine(directoryPath, pdfFileName);
+            string newFile = Path.Combine(directoryPath, ier.Address + "-UPDATED.pdf");
+            try
+            {
+                PdfReader pdfReader = new PdfReader(pdfTemplate);
+                PdfStamper pdfStamper = new PdfStamper(pdfReader, new FileStream(newFile, FileMode.Create));
+                AcroFields pdfFormFields = pdfStamper.AcroFields;
+            
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.ADVERTISING], GetFormFieldValue("Advertising", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.SUPPLIES], GetFormFieldValue("Supplies", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.TAXES], GetFormFieldValue("Taxes", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.UTILITIES], GetFormFieldValue("Utilities", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.AUTO_AND_TRAVEL], GetFormFieldValue("Auto & Travel", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.CLEANING_AND_MAINTENANCE], GetFormFieldValue("Cleaning & Maintenance", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.INSURANCE_OTHER_THAN_HEALTH], GetFormFieldValue("Insurance", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.LEGAL_AND_OTHER_PROFESSIONAL_FEES], GetFormFieldValue("Legal & Other Professionals Fee’s", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MORTGAGE_INT_PAID_TO_FINNCIAL_INSTITUTIONS], GetFormFieldValue("Mortgage Interest paid to Financial", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MORTGAGE_INT_PAID_TO_INDIVIDUALS], GetFormFieldValue("Mortgage Interest paid to Individuals", ier));
+                pdfFormFields.SetField(PdfFieldsNameDict[Expenses.REPAIRS], GetFormFieldValue("Repairs", ier));
+                // DONT CURRENTLY USE
+                //pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MANAGEMENT_FEES], GetFormFieldValue("Auto & Travel", ier)     ier.Expenses.GetValueOrDefault("").ToString());
+                //pdfFormFields.SetField(PdfFieldsNameDict[Expenses.DEPENDENT_CARE_BENEFITS], "DEPENDENT_CARE_BENEFITS");
+                //pdfFormFields.SetField(PdfFieldsNameDict[Expenses.EMPLOYEE_BENEFITS], "EMPLOYEE_BENEFITS");
+                //pdfFormFields.SetField(PdfFieldsNameDict[Expenses.OTHER_INTEREST], ier.Expenses.GetValueOrDefault("Advertising").ToString());
+                //pdfFormFields.SetField(PdfFieldsNameDict[Expenses.COMMISSIONS], ier.Expenses.GetValueOrDefault("Commissions").ToString());
 
-            string pdfTemplate = @"C:\code\ExpenseReportConverter\Development References\2022 CLA Tax Organizer Zach Zank FINAL -part-2.pdf"; // Replace with your PDF file path
-            string newFile = @"C:\code\ExpenseReportConverter\Development References\2022 CLA Tax Organizer Zach Zank FINAL -part-2-FILLED.pdf"; // Replace with your PDF file path
-            PdfReader pdfReader = new PdfReader(pdfTemplate);
-            PdfStamper pdfStamper = new PdfStamper(pdfReader, new FileStream(newFile, FileMode.Create));
-            AcroFields pdfFormFields = pdfStamper.AcroFields;
+                //output successful writes first, then errored writes
+                foreach (string successMessage in successfulPDFOutputs)
+                {
+                    OutputLine(successMessage, 2);
+                }
+                foreach (string errorMessage in erroredPDFOutputs)
+                {
+                    OutputLine(errorMessage, 2);
+                }
 
-            // set form pdfFormFields  
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.ADVERTISING], "ad");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.AUTO_AND_TRAVEL], "aut");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.CLEANING_AND_MAINTENANCE], "cm");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.COMMISSIONS], "commis");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.INSURANCE_OTHER_THAN_HEALTH], "INSURANCE_OTHER_THAN_HEALTH");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.LEGAL_AND_OTHER_PROFESSIONAL_FEES], "LEGAL_AND_OTHER_PROFESSIONAL_FEES");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MANAGEMENT_FEES], "MANAGEMENT_FEES");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MORTGAGE_INT_PAID_TO_FINNCIAL_INSTITUTIONS], "MORTGAGE_INT_PAID_TO_FINNCIAL_INSTITUTIONS");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MORTGAGE_INT_PAID_TO_INDIVIDUALS], "MORTGAGE_INT_PAID_TO_INDIVIDUALS");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.OTHER_INTEREST], "OTHER_INTEREST");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.REPAIRS], "REPAIRS");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.SUPPLIES], "SUPPLIES");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.TAXES], "TAXES");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.UTILITIES], "UTILITIES");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.DEPENDENT_CARE_BENEFITS], "DEPENDENT_CARE_BENEFITS");
-            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.EMPLOYEE_BENEFITS], "EMPLOYEE_BENEFITS");
+                // flatten the form to remove editting options, set it to false  
+                // to leave the form open to subsequent manual edits  
+                pdfStamper.FormFlattening = false;
+                // close the pdf  
+                pdfStamper.Close();
+                SuccessfullAddressWritesToPDF.Add(ier.Address);
+            }
+            catch (IOException)
+            {
+                OutputLine(failIcon + " [" + ier.Address + "] no associated pdf found so nothing was written.", 2);
+                ErroredAddressWritesToPDF.Add(ier.Address);
+            }
 
-            // flatten the form to remove editting options, set it to false  
-            // to leave the form open to subsequent manual edits  
-            pdfStamper.FormFlattening = false;
-            // close the pdf  
-            pdfStamper.Close();
-            Console.Write("wrote fields.");
+            successfulPDFOutputs.Clear();
+            erroredPDFOutputs.Clear();
+        }
+
+        public static string GetFormFieldValue(string expenseKey, InputExcelReport ier)
+        {
+            if (ier.Expenses.ContainsKey(expenseKey))
+            {
+                string valueToAddToPdf = ier.Expenses.GetValueOrDefault(expenseKey).ToString();
+                successfulPDFOutputs.Add(successIcon + " " + expenseKey + "[" + valueToAddToPdf + "]");
+                return valueToAddToPdf;
+            }
+            else
+            {
+                erroredPDFOutputs.Add(failIcon + " " + expenseKey + " [KEY NOT FOUND]");
+            }
+            return "";
         }
 
         public static InputExcelReport ParseInputExcel(FileInfo file)
         {
             InputExcelReport ier = new InputExcelReport();
             ier.FileInfo = file;
-            ier.Address = file.Name.Contains('&') ? file.Name.Substring(0, file.Name.IndexOf('&')) : file.Name.Substring(0, file.Name.IndexOf(file.Extension));
+            ier.Address = file.Name.Contains('&') ? file.Name.Substring(0, file.Name.IndexOf('&')).Trim() : file.Name.Substring(0, file.Name.IndexOf(file.Extension)).Trim();
             ier.Expenses = ReadDataFromExcel(ier.FileInfo.FullName);
             return ier;
         }
@@ -344,7 +401,7 @@ namespace ExpenseReportConverter
                     // IF ADDRESS NOT FOUND, DISPLAY MSG TO USER
                     if (reportAddressRow == 0)
                     {
-                        OutputLine(failIcon + " [" + report.Address + "] was not found in K1 so nothing was written.");
+                        OutputLine(failIcon + " [" + report.Address + "] was not found in K1 so nothing was written.", 2);
                         ErroredAddressWritesToK1.Add(report.Address);
                     } else
                     {
@@ -352,7 +409,7 @@ namespace ExpenseReportConverter
                         List<string> erroredOutputs = new List<string>();
 
                         // ELSE APPEND EXPENSE DATA TO K1
-                        foreach (var expense in report.Expenses)
+                        foreach (KeyValuePair<string, double> expense in report.Expenses)
                         {
                             try
                             {
@@ -369,16 +426,15 @@ namespace ExpenseReportConverter
                         //output successful writes first, then errored writes
                         foreach (string successMessage in successfulOutputs)
                         {
-                            OutputLine(successMessage);
+                            OutputLine(successMessage, 1);
                         }
                         foreach (string errorMessage in erroredOutputs)
                         {
-                            OutputLine(errorMessage);
+                            OutputLine(errorMessage, 1);
                         }
 
                         SaveFile(existingFile);
                         SuccessfullAddressWritesToK1.Add(report.Address);
-                        OutputLine("Success!");
                     }
                 }
             }
@@ -410,10 +466,16 @@ namespace ExpenseReportConverter
             OutputLine($"   {errorMessage}");
         }
 
-        public static void OutputLine(string message = "")
+        public static void OutputLine(string message = "", int numIndents = 0)
         {
             // WRITE MESSAGE TO CONSOLE
-            Console.WriteLine(message);
+            string indentsAppend = "";
+            while(numIndents > 0)
+            {
+                indentsAppend += "\t";
+                numIndents--;
+            }
+            Console.WriteLine(indentsAppend + message);
 
             // WRITE MESSAGE TO LOG FILE
             if(directoryPath != null)
@@ -434,7 +496,7 @@ namespace ExpenseReportConverter
                 // Append the line to the file
                 using (StreamWriter sw = System.IO.File.AppendText(filePath))
                 {
-                    sw.WriteLine(message);
+                    sw.WriteLine(indentsAppend + message);
                 }
             }
         }
