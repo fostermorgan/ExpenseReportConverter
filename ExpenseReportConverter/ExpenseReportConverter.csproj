@@ -12,6 +12,8 @@
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
     <PackageReference Include="EPPlus" Version="7.0.0" />
     <PackageReference Include="itext7.pdfhtml" Version="5.0.2" />
+    <PackageReference Include="iTextSharp" Version="5.5.13.3" />
+    <PackageReference Include="PDFsharp" Version="6.0.0" />
   </ItemGroup>
 
 </Project>

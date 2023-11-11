@@ -6,11 +6,10 @@ using System.Runtime.ConstrainedExecution;
 using System.Net;
 using System.Diagnostics.Metrics;
 using System.Xml.Linq;
-using System.Reflection.PortableExecutable;
-using iText.Kernel.Pdf;
-using iText.Forms;
-using iText.Forms.Fields;
 using static iText.IO.Codec.TiffWriter;
+using File = System.IO.File;
+using iTextSharp.text.pdf;
+using PdfReader = iTextSharp.text.pdf.PdfReader;
 
 namespace ExpenseReportConverter
 {
@@ -37,8 +36,8 @@ namespace ExpenseReportConverter
 
             //set up exception handling
             System.AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
-            
-            
+
+
             // prompt user for directory of where all the files are
             directoryPath = string.Empty;
             while (string.IsNullOrEmpty(directoryPath))
@@ -163,122 +162,85 @@ namespace ExpenseReportConverter
 
         }
 
+        public enum Expenses
+        {
+            ADVERTISING,
+            AUTO_AND_TRAVEL,
+            CLEANING_AND_MAINTENANCE,
+            COMMISSIONS,
+            INSURANCE_OTHER_THAN_HEALTH,
+            LEGAL_AND_OTHER_PROFESSIONAL_FEES,
+            MANAGEMENT_FEES,
+            MORTGAGE_INT_PAID_TO_FINNCIAL_INSTITUTIONS,
+            MORTGAGE_INT_PAID_TO_INDIVIDUALS,
+            OTHER_INTEREST,
+            REPAIRS,
+            SUPPLIES,
+            TAXES,
+            UTILITIES,
+            DEPENDENT_CARE_BENEFITS,
+            EMPLOYEE_BENEFITS,
+            OTHER_EXPENSES_NAME_1,
+            OTHER_EXPENSES_NAME_2,
+            OTHER_EXPENSES_AMOUNT_1,
+            OTHER_EXPENSES_AMOUNT_2,
+        }
+
         public static void WriteToPdf()
         {
-            //string pdfFilePath = "Path_to_Your_PDF_File.pdf"; // Replace with your PDF file path
-
-            //string fieldName = "YourFieldName"; // Replace with the actual field name in your PDF
-
-            //string fieldValue = "Value to Fill"; // The value you want to set in the field
-
-            //try
-            //{
-            //    PdfDocument pdfDocument = new PdfDocument(new PdfReader(pdfFilePath), new PdfWriter(pdfFilePath));
-
-            //    PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, true);
-            //    form.GetField(fieldName).SetValue(fieldValue);
-
-            //    pdfDocument.Close();
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine("An error occurred: " + ex.Message);
-            //}
-
-
-            string pdfFilePath = @"C:\code\ExpenseReportConverter\Development References\2022 CLA Tax Organizer Zach Zank FINAL -part-2.pdf"; // Replace with your PDF file path
-            //try
-            //{
-            //    using (PdfReader pdfReader = new PdfReader(pdfFilePath))
-            //    {
-            //        PdfDocument pdfDocument = new PdfDocument(pdfReader, new PdfWriter(pdfFilePath + ".tmp"));
-            //        PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, true);
-
-            //        if (form != null)
-            //        {
-            //            ICollection<PdfFormField> fields = form.GetAllFormFields().Values;
-
-            //            foreach (PdfFormField field in fields)
-            //            {
-            //                string fieldName = field.GetFieldName().GetValue();
-            //                field.SetValue(fieldName);
-            //            }
-            //        }
-            //        else
-            //        {
-            //            Console.WriteLine("The document does not contain any form fields.");
-            //        }
-
-            //        pdfDocument.Close();
-            //    }
-
-            //    // Delete the original file and rename the modified one
-            //    System.IO.File.Delete(pdfFilePath);
-            //    System.IO.File.Move(pdfFilePath + ".tmp", pdfFilePath);
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine("An error occurred: " + ex.Message);
-            //}
+            Dictionary<Expenses, string> PdfFieldsNameDict = new Dictionary<Expenses, string>();
+            PdfFieldsNameDict.Add(Expenses.ADVERTISING, "Field456");
+            PdfFieldsNameDict.Add(Expenses.AUTO_AND_TRAVEL, "Field457");
+            PdfFieldsNameDict.Add(Expenses.CLEANING_AND_MAINTENANCE, "Field458");
+            PdfFieldsNameDict.Add(Expenses.COMMISSIONS, "Field459");
+            PdfFieldsNameDict.Add(Expenses.INSURANCE_OTHER_THAN_HEALTH, "Field460");
+            PdfFieldsNameDict.Add(Expenses.LEGAL_AND_OTHER_PROFESSIONAL_FEES, "Field461");
+            PdfFieldsNameDict.Add(Expenses.MANAGEMENT_FEES, "Field462");
+            PdfFieldsNameDict.Add(Expenses.MORTGAGE_INT_PAID_TO_FINNCIAL_INSTITUTIONS, "Field463");
+            PdfFieldsNameDict.Add(Expenses.MORTGAGE_INT_PAID_TO_INDIVIDUALS, "Field464");
+            PdfFieldsNameDict.Add(Expenses.OTHER_INTEREST, "Field465");
+            PdfFieldsNameDict.Add(Expenses.REPAIRS, "Field466");
+            PdfFieldsNameDict.Add(Expenses.SUPPLIES, "Field467");
+            PdfFieldsNameDict.Add(Expenses.TAXES, "Field468");
+            PdfFieldsNameDict.Add(Expenses.UTILITIES, "Field469");
+            PdfFieldsNameDict.Add(Expenses.DEPENDENT_CARE_BENEFITS, "Field470");
+            PdfFieldsNameDict.Add(Expenses.EMPLOYEE_BENEFITS, "Field471");
+            PdfFieldsNameDict.Add(Expenses.OTHER_EXPENSES_AMOUNT_2, "Field475");
+            PdfFieldsNameDict.Add(Expenses.OTHER_EXPENSES_NAME_2, "Field474");
+            PdfFieldsNameDict.Add(Expenses.OTHER_EXPENSES_AMOUNT_1, "Field473");
+            PdfFieldsNameDict.Add(Expenses.OTHER_EXPENSES_NAME_1, "Field472");
 
 
-            try
-            {
-                PdfDocument pdfDocument = new PdfDocument(new PdfWriter(pdfFilePath));
+            string pdfTemplate = @"C:\code\ExpenseReportConverter\Development References\2022 CLA Tax Organizer Zach Zank FINAL -part-2.pdf"; // Replace with your PDF file path
+            string newFile = @"C:\code\ExpenseReportConverter\Development References\2022 CLA Tax Organizer Zach Zank FINAL -part-2-FILLED.pdf"; // Replace with your PDF file path
+            PdfReader pdfReader = new PdfReader(pdfTemplate);
+            PdfStamper pdfStamper = new PdfStamper(pdfReader, new FileStream(newFile, FileMode.Create));
+            AcroFields pdfFormFields = pdfStamper.AcroFields;
 
-                PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, true);
-                if (form != null)
-                {
-                    ICollection<PdfFormField> fields = form.GetAllFormFields().Values;
+            // set form pdfFormFields  
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.ADVERTISING], "ad");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.AUTO_AND_TRAVEL], "aut");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.CLEANING_AND_MAINTENANCE], "cm");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.COMMISSIONS], "commis");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.INSURANCE_OTHER_THAN_HEALTH], "INSURANCE_OTHER_THAN_HEALTH");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.LEGAL_AND_OTHER_PROFESSIONAL_FEES], "LEGAL_AND_OTHER_PROFESSIONAL_FEES");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MANAGEMENT_FEES], "MANAGEMENT_FEES");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MORTGAGE_INT_PAID_TO_FINNCIAL_INSTITUTIONS], "MORTGAGE_INT_PAID_TO_FINNCIAL_INSTITUTIONS");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.MORTGAGE_INT_PAID_TO_INDIVIDUALS], "MORTGAGE_INT_PAID_TO_INDIVIDUALS");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.OTHER_INTEREST], "OTHER_INTEREST");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.REPAIRS], "REPAIRS");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.SUPPLIES], "SUPPLIES");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.TAXES], "TAXES");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.UTILITIES], "UTILITIES");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.DEPENDENT_CARE_BENEFITS], "DEPENDENT_CARE_BENEFITS");
+            pdfFormFields.SetField(PdfFieldsNameDict[Expenses.EMPLOYEE_BENEFITS], "EMPLOYEE_BENEFITS");
 
-                    foreach (PdfFormField field in fields)
-                    {
-                        string fieldName = field.GetFieldName().GetValue();
-                        field.SetValue(fieldName);
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("The document does not contain any form fields.");
-                }
-
-                pdfDocument.Close();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("An error occurred: " + ex.Message);
-            }
-
-
-            //try
-            //{
-            //    PdfDocument pdfDocument = new PdfDocument(new PdfReader(pdfFilePath));
-
-            //    PdfAcroForm form = PdfAcroForm.GetAcroForm(pdfDocument, false);
-            //    if (form != null)
-            //    {
-            //        ICollection<PdfFormField> fields = form.GetAllFormFields().Values;
-
-            //        Console.WriteLine("Form Field Names:");
-            //        foreach (PdfFormField field in fields)
-            //        {
-
-            //            string fieldName = field.GetFieldName().GetValue();
-            //            Console.WriteLine(field.GetFieldName());
-            //            form.GetField(fieldName).SetValue(fieldName);
-            //        }
-            //    }
-            //    else
-            //    {
-            //        Console.WriteLine("The document does not contain any form fields.");
-            //    }
-
-            //    pdfDocument.Close();
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine("An error occurred: " + ex.Message);
-            //}
+            // flatten the form to remove editting options, set it to false  
+            // to leave the form open to subsequent manual edits  
+            pdfStamper.FormFlattening = false;
+            // close the pdf  
+            pdfStamper.Close();
+            Console.Write("wrote fields.");
         }
 
         public static InputExcelReport ParseInputExcel(FileInfo file)
@@ -576,4 +538,6 @@ namespace ExpenseReportConverter
         public Dictionary<string, double> Expenses { get; set; } //Key is Title, Value will be the value
         public string Address { get; set; }
     }
+
+
 }
